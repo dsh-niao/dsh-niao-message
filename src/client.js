@@ -5,7 +5,7 @@
  *   - 「是否启用」总开关；
  *   - 「通知行为」：重复通知开关、点击横幅后打开的应用；
  *   - 「通知分组」：三大组（异常终止 / 需要你操作 / 正常完成），每组一个
- *     启用开关、提示音与标题/消息模板（{tool} {name} {code} {reason} 变量）。
+ *     启用开关、提示音与标题/消息模板（{reason} {tool} 变量）。
  *
  * 所有配置通过同源 JSON 路由 /api/dsh-niao-message 读写（宿主端持久化到
  * ~/.dsh/dsh-niao-message.config.json）。面板提供「保存」与「测试通知」。
@@ -29,7 +29,7 @@ const GROUPS = [
     key: 'abnormal',
     name: '异常终止',
     note: '任务未能正常完成，被迫异常结束',
-    covers: ['上下文超限', '任务阻塞', '任务被中止', '任务被中断', '回答出错', '工具调用失败'],
+    covers: ['上下文超限', '任务阻塞', '任务被中止', '任务被中断', '回答出错'],
   },
   {
     key: 'waiting',
@@ -50,7 +50,7 @@ const SOUNDS = ['Glass', 'Ping', 'Basso', 'Sosumi', 'Submarine', 'Hero', 'Funk',
 
 /** 各组模板可用变量提示。 */
 const VAR_HINT = {
-  abnormal: '可用变量：{reason}（具体原因）、{name}（错误名）、{code}（错误码）',
+  abnormal: '可用变量：{reason}（具体原因）',
   waiting: '可用变量：{tool}（工具名）——等待批准时',
   success: '',
 }

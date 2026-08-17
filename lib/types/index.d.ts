@@ -27,7 +27,7 @@ export interface GroupConfig {
   sound?: string
   /** 横幅标题模板（支持 {var}）。 */
   title?: string
-  /** 横幅消息模板（支持 {var}：{reason} {name} {code} {tool}）。 */
+  /** 横幅消息模板（支持 {var}：{reason} {tool}）。 */
   message?: string
 }
 

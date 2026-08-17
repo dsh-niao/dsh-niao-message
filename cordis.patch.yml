@@ -18,7 +18,7 @@
 #               enabled: true
 #               sound: Basso
 #               title: 'DSH · 工具出错'
-#               message: '{name} ({code})'
+#               message: '任务异常：{reason}'
 - insert:
     - id: dsh-niao-message
       name: 'dsh-niao-message'

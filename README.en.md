@@ -19,9 +19,11 @@ Uses **terminal-notifier** to post Notification Center banners at the moments th
 
 | Group | Default | Sound | Covers |
 |---|---|---|---|
-| **Abnormal termination** | ✅ on | Sosumi | Context over limit, task blocked, task aborted, task interrupted, answer error, tool call failure |
+| **Abnormal termination** | ✅ on | Sosumi | Context over limit, task blocked, task aborted, task interrupted, answer error |
 | **Action needed** | ✅ on | Ping | Awaiting your answer (question / continue), awaiting your approval (authorization) |
 | **Completed** | ✅ on | Glass | Answer complete, subagent finished |
+
+> Note: **a single tool-call failure is not notified** — it is an in-process failure and the agent usually retries or continues within the same turn, so it does not mean the task abnormally terminated; only a turn ending abnormally (the "Abnormal termination" group above) is alerted.
 
 Default templates:
 
@@ -36,7 +38,6 @@ Template variables:
 | Variable | Meaning | Group |
 |---|---|---|
 | `{reason}` | Specific reason (context over limit / blocked / aborted / interrupted / error) | Abnormal termination |
-| `{name}` `{code}` | Tool failure error name / code | Abnormal termination |
 | `{tool}` | Tool awaiting approval | Action needed |
 
 ## Settings panel
@@ -84,7 +85,7 @@ Patch-layer override example (config hot-reloads):
             enabled: true
             sound: Basso
             title: 'DSH · 工具出错'
-            message: '{name} ({code})'
+            message: '任务异常：{reason}'
 ```
 
 | Key | Meaning | Default |

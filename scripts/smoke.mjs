@@ -178,11 +178,11 @@ emit('turn/end', { reason: { kind: 'completed' } })
 await waitFor(() => log().length === 1 && log()[0].includes('任务完成'))
 check('整轮完成：触发通知（success 组）', log().length === 1 && log()[0].includes('任务完成'))
 
-/* 6. 单工具错误：abnormal 组默认开启 → 触发通知 */
+/* 6. 单工具错误：过程性失败，不视为任务异常终止 → 不通知 */
 clearAll()
 emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
-await waitFor(() => log().length === 1 && log()[0].includes('任务异常'))
-check('工具错误：abnormal 组默认开启 → 通知', log().length === 1 && log()[0].includes('任务异常'))
+await sleep(800)
+check('工具错误：不触发「异常终止」通知（Agent 通常会重试）', log().length === 0)
 
 /* 7. 批准：宽限期后仍未决 → waiting 组通知；{tool} 变量按组模板替换 */
 clearAll()
@@ -220,21 +220,21 @@ const get1 = await http('get-config')
 check('get-config：返回 200 且含分组配置', get1.status === 200 && !!get1.data.value.config.groups.abnormal)
 check('get-config：abnormal 组默认开启', get1.data.value.config.groups.abnormal.enabled === true)
 
-/* 12. 设置面板路由：set-config 关闭 abnormal 组 → 工具错误静默；再开启 → 生效 */
+/* 12. 设置面板路由：set-config 关闭 abnormal 组 → turn/end error 静默；再开启 → 生效 */
 const set1 = await http('set-config', { config: { groups: { abnormal: { enabled: false } } } })
 check('set-config：关闭 abnormal 组', set1.status === 200 && set1.data.value.config.groups.abnormal.enabled === false)
 check('set-config：配置已写入文件', existsSync(CONFIG_FILE))
 clearAll()
-emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
+emit('turn/end', { reason: { kind: 'error' } })
 await sleep(800)
-check('set-config 后：abnormal 关闭 → 工具错误不通知', log().length === 0)
-const set1b = await http('set-config', { config: { groups: { abnormal: { enabled: true, message: '{name} ({code})' } } } })
+check('set-config 后：abnormal 关闭 → 整轮出错不通知', log().length === 0)
+const set1b = await http('set-config', { config: { groups: { abnormal: { enabled: true, message: '异常原因：{reason}' } } } })
 check('set-config：重新开启 abnormal 组并自定义模板', set1b.status === 200 && set1b.data.value.config.groups.abnormal.enabled === true)
 clearAll()
-emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
+emit('turn/end', { reason: { kind: 'max-tokens' } })
 await waitFor(() => log().length === 1)
-check('set-config 后：abnormal 开启 → 工具错误触发通知', log().length === 1 && log()[0].includes('任务异常'))
-check('工具错误模板：{name}/{code} 被替换', log()[0].includes('EACCES'))
+check('set-config 后：abnormal 开启 → 整轮出错触发通知', log().length === 1 && log()[0].includes('异常原因'))
+check('异常模板：{reason} 被替换', log()[0].includes('上下文超限'))
 
 /* 13. 总开关 enabled=false → 全部静默 */
 const set2 = await http('set-config', { config: { enabled: false } })
