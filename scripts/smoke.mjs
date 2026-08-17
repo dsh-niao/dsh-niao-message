@@ -4,7 +4,7 @@
  *
  * 用 fake ctx（含假 webServer 路由）+ 指向「参数录制脚本」的假 tool，
  * 模拟 session/event 事件流与设置面板 HTTP 请求，验证：
- *   - 各场景独立开关（工具失败默认关、中止默认关、完成默认开…）
+ *   - 三大通知组（abnormal / waiting / success）的触发与开关
  *   - 总开关 enabled
  *   - 节流、未点击去重、点击参数（open -a + 删标记）、批准宽限期
  *   - 设置面板路由：get-config / set-config（持久化到临时文件）/ test
@@ -13,7 +13,7 @@
  * 注意：异步子进程在本环境启动较慢（数百毫秒），所有断言都通过
  * waitFor 轮询等待，而不是固定 sleep。
  *
- * 运行：npm run smoke
+ * 运行：npm run smoke（共 33 项断言）
  */
 
 import { execFileSync } from 'node:child_process'
@@ -150,15 +150,15 @@ console.log('dsh-niao-message smoke')
 
 const clearAll = () => { rmSync(CAPTURE, { force: true }); rmSync(MARKER, { force: true }) }
 
-/* 1+2. 提问 → 通知；紧随其后的同类提问在节流窗口内被合并 */
+/* 1+2. 提问 → waiting 组通知；紧随其后的同类提问在节流窗口内被合并 */
 clearAll()
 emit('tool/call', { name: 'ask_user_question' })   // sent
 emit('tool/call', { name: 'ask_user_question' })   // 同一 tick，throttleMs=100 内 → throttled
 await waitFor(() => log().length === 1)
-check('询问：ask_user_question 触发通知', log().length === 1 && log()[0].includes('需要你回答'))
+check('询问：ask_user_question 触发通知', log().length === 1 && log()[0].includes('需要你操作'))
 check('节流：窗口内同类通知被合并', log().length === 1)
 
-/* 3. 去重：标记存在时其他 key 也被跳过 */
+/* 3. 去重：标记存在时其他组也被跳过 */
 emit('turn/end', { reason: { kind: 'completed' } })
 await sleep(800)
 check('去重：有未点击标记时新通知被跳过', log().length === 1)
@@ -168,27 +168,29 @@ check('去重：标记文件已写入', existsSync(MARKER))
 check('点击：-execute 含 open -a DeepSeek Harness', log()[0].includes("open -a 'DeepSeek Harness'"))
 check('点击：-execute 含删除标记命令', log()[0].includes(`rm -f '${MARKER}'`))
 
-/* 5. 整轮出错触发；清除标记后，整轮完成也触发 */
+/* 5. 整轮出错 → abnormal 组；清除标记后，整轮完成 → success 组 */
 clearAll()
 emit('turn/end', { reason: { kind: 'error' } })
-await waitFor(() => log().length === 1 && log()[0].includes('任务出错'))
-check('整轮出错：触发通知', log().length === 1 && log()[0].includes('任务出错'))
+await waitFor(() => log().length === 1 && log()[0].includes('任务异常'))
+check('整轮出错：触发通知（abnormal 组）', log().length === 1 && log()[0].includes('任务异常'))
 clearAll()
 emit('turn/end', { reason: { kind: 'completed' } })
 await waitFor(() => log().length === 1 && log()[0].includes('任务完成'))
-check('整轮完成：触发通知', log().length === 1 && log()[0].includes('任务完成'))
+check('整轮完成：触发通知（success 组）', log().length === 1 && log()[0].includes('任务完成'))
 
-/* 6. 单工具错误：默认静默（场景 tool-error 默认关闭） */
+/* 6. 单工具错误：abnormal 组默认开启 → 触发通知 */
 clearAll()
 emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
-await sleep(800)
-check('工具错误：默认不通知', log().length === 0)
+await waitFor(() => log().length === 1 && log()[0].includes('任务异常'))
+check('工具错误：abnormal 组默认开启 → 通知', log().length === 1 && log()[0].includes('任务异常'))
 
-/* 7. 批准：宽限期后仍未决 → 通知 */
+/* 7. 批准：宽限期后仍未决 → waiting 组通知；{tool} 变量按组模板替换 */
 clearAll()
+const setWaitingTpl = await http('set-config', { config: { groups: { waiting: { message: '需要批准：{tool}' } } } })
+check('set-config：自定义 waiting 组消息模板', setWaitingTpl.status === 200)
 emit('approval/asked', { id: 'a1', toolName: 'bash' })
-await waitFor(() => log().length === 1 && log()[0].includes('需要你批准'))
-check('批准：宽限期后仍待人工决定 → 通知', log().length === 1 && log()[0].includes('需要你批准'))
+await waitFor(() => log().length === 1 && log()[0].includes('需要你操作'))
+check('批准：宽限期后仍待人工决定 → 通知', log().length === 1 && log()[0].includes('需要你操作'))
 check('批准：模板变量 {tool} 被替换', log()[0].includes('bash'))
 
 /* 8. 批准：宽限期内已决定 → 静默 */
@@ -199,33 +201,39 @@ emit('approval/decided', { id: 'a2' })
 await sleep(800)
 check('批准：宽限期内自动放行 → 静默', log().length === 0)
 
-/* 9. 默认关闭场景：aborted / max-tokens / blocked / interrupted 不通知 */
+/* 9. 异常类 turn/end（中止/超限/阻塞/中断）→ abnormal 组，节流窗口内合并为一条 */
 clearAll()
 for (const kind of ['aborted', 'max-tokens', 'blocked', 'interrupted']) {
   emit('turn/end', { reason: { kind } })
 }
-await sleep(800)
-check('默认关闭场景（中止/超限/阻塞/中断）不通知', log().length === 0)
+await waitFor(() => log().length === 1)
+check('异常类 turn/end：触发 abnormal 组通知', log().length === 1 && log()[0].includes('任务异常'))
 
-/* 10. 子代理结束：默认关闭不通知 */
+/* 10. 子代理结束 → success 组 */
 clearAll()
 listeners['subagent/end']({})
-await sleep(800)
-check('子代理结束：默认不通知', log().length === 0)
+await waitFor(() => log().length === 1)
+check('子代理结束：触发通知（success 组）', log().length === 1 && log()[0].includes('任务完成'))
 
 /* 11. 设置面板路由：get-config */
 const get1 = await http('get-config')
-check('get-config：返回 200 且含场景配置', get1.status === 200 && !!get1.data.value.config.scenarios['tool-error'])
-check('get-config：tool-error 默认关闭', get1.data.value.config.scenarios['tool-error'].enabled === false)
+check('get-config：返回 200 且含分组配置', get1.status === 200 && !!get1.data.value.config.groups.abnormal)
+check('get-config：abnormal 组默认开启', get1.data.value.config.groups.abnormal.enabled === true)
 
-/* 12. 设置面板路由：set-config 开启工具错误场景 → 生效 */
-const set1 = await http('set-config', { config: { scenarios: { 'tool-error': { enabled: true } } } })
-check('set-config：返回新配置', set1.status === 200 && set1.data.value.config.scenarios['tool-error'].enabled === true)
+/* 12. 设置面板路由：set-config 关闭 abnormal 组 → 工具错误静默；再开启 → 生效 */
+const set1 = await http('set-config', { config: { groups: { abnormal: { enabled: false } } } })
+check('set-config：关闭 abnormal 组', set1.status === 200 && set1.data.value.config.groups.abnormal.enabled === false)
 check('set-config：配置已写入文件', existsSync(CONFIG_FILE))
 clearAll()
 emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
+await sleep(800)
+check('set-config 后：abnormal 关闭 → 工具错误不通知', log().length === 0)
+const set1b = await http('set-config', { config: { groups: { abnormal: { enabled: true, message: '{name} ({code})' } } } })
+check('set-config：重新开启 abnormal 组并自定义模板', set1b.status === 200 && set1b.data.value.config.groups.abnormal.enabled === true)
+clearAll()
+emit('tool/result', { error: { code: 'EACCES', name: 'EACCES' } })
 await waitFor(() => log().length === 1)
-check('set-config 后：工具错误场景触发通知', log().length === 1 && log()[0].includes('工具出错'))
+check('set-config 后：abnormal 开启 → 工具错误触发通知', log().length === 1 && log()[0].includes('任务异常'))
 check('工具错误模板：{name}/{code} 被替换', log()[0].includes('EACCES'))
 
 /* 13. 总开关 enabled=false → 全部静默 */

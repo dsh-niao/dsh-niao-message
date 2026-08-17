@@ -1,67 +1,76 @@
 # dsh-niao-message
 
-[English](README.md) | [中文](README.zh.md)
+[English](README.en.md) | [中文](README.md)
 
-macOS system notifications for DeepSeek Harness, with a **settings panel**.
+DeepSeek Harness 的 **macOS 系统通知** 插件，自带 **设置面板**（设置弹窗 →「通知管理」）。
 
-Uses **terminal-notifier** to post Notification Center banners at the moments that genuinely need the human; **clicking a banner opens a configured app** (DeepSeek Harness by default).
+用 **terminal-notifier** 在对话的关键节点向 macOS 通知中心弹出横幅；**点击横幅直接打开指定软件**（可配置，默认仅消失）。
 
-## Notifiable scenarios (enabled ✅ / disabled ⬜ by default)
+## 特性
 
-| Scenario | Event | Default | Sound |
+- **三大通知组**：把全部可通知情况归为「异常终止 / 需要你操作 / 正常完成」三组，每组一个开关 + 提示音 + 标题/消息模板，简单直观。
+- **点击打开指定软件**：点击横幅执行 `open -a '<应用名>'`（或按 bundle id 激活 / 自定义 shell 命令），同时清除「未点击去重」标记。
+- **未点击去重**：通知中心还挂着未点击的 DSH 通知时，新通知自动跳过（标记文件 + 过期时间，防止刷屏与永久静默）。
+- **节流**：同类通知 3 秒内合并为一条；被节流/去重拦下的通知不消耗节流配额。
+- **零手动安装**：插件自带 macOS 通知二进制（arm64，Apple Silicon 开箱即用）；Intel Mac 自动回退到 npm 依赖 `node-notifier` 自带的 x86_64 二进制，无需用户安装任何系统工具。
+- **宿主端事件驱动**：监听宿主进程的 `session/event` 与 `subagent/end`（非浏览器页面），标签页后台/最小化时通知照常弹出。
+
+## 三大通知组
+
+| 组 | 默认 | 提示音 | 覆盖情况 |
 |---|---|---|---|
-| Waiting for user answer | `tool/call` with `ask_user_question` (blocks until you answer) | ✅ | Glass |
-| Pending approval | `approval/asked` unresolved after the grace window | ✅ | Ping |
-| Tool call failure | `tool/result` with `error` (agent usually retries in-turn; keep off) | ⬜ | Basso |
-| Answer complete | `turn/end` reason=`completed` | ✅ | Glass |
-| Answer error | `turn/end` reason=`error` | ✅ | Sosumi |
-| Task aborted | `turn/end` reason=`aborted` (user cancelled) | ⬜ | Glass |
-| Context over limit | `turn/end` reason=`max-tokens` | ⬜ | Glass |
-| Task blocked | `turn/end` reason=`blocked` | ⬜ | Glass |
-| Task interrupted | `turn/end` reason=`interrupted` | ⬜ | Glass |
-| Subagent finished | `subagent/end` | ⬜ | Glass |
+| **异常终止** | ✅ 开 | Sosumi | 上下文超限、任务阻塞、任务被中止、任务被中断、回答出错、工具调用失败 |
+| **需要你操作** | ✅ 开 | Ping | 等待用户确认（提问 / 是否继续）、等待用户批准（授权） |
+| **正常完成** | ✅ 开 | Glass | 回答完成、子代理结束 |
 
-Each scenario has its own **enable toggle**, **sound**, **title template** and **message template** (variables `{tool}` `{name}` `{code}`).
+默认模板：
 
-## Settings panel
+| 组 | 标题 | 消息 |
+|---|---|---|
+| 异常终止 | `DSH · 任务异常终止` | `任务未能正常完成：{reason}` |
+| 需要你操作 | `DSH · 需要你操作` | `对话已暂停，等待你的确认或授权` |
+| 正常完成 | `DSH · 任务完成` | `任务已顺利完成` |
 
-After install, open the DSH settings dialog (⚙️ at the sidebar foot); the left nav gains a **「通知管理」** page:
+每组模板支持以下变量：
 
-- **是否启用 (Enable)**: master switch; when off, every scenario is silent.
-- **场景启用配置 (Scenario toggles)**: every node from the table above, each row with an enable toggle and a sound picker.
-- **通知模板 (Templates)**: per-scenario title / message editors (with variable hints).
-- Top-right **保存 (Save)** (hot-reloads config, persisted to `~/.dsh/dsh-niao-message.config.json`) and **测试通知 (Test)** (posts a test banner immediately).
+| 变量 | 含义 | 可用组 |
+|---|---|---|
+| `{reason}` | 具体原因（上下文超限 / 任务阻塞 / 任务被中止 / 任务被中断 / 任务出错） | 异常终止 |
+| `{name}` `{code}` | 工具调用失败的错误名 / 错误码 | 异常终止 |
+| `{tool}` | 等待批准的工具名 | 需要你操作 |
 
-## Features
+## 设置面板
 
-- **Click to open an app**: clicking a banner runs `open -a '<AppName>'` (or activates a bundle id / a custom shell command).
-- **Un-clicked dedupe**: while an un-clicked DSH notification is pending (marker file with expiry), new notifications are skipped — no banner stacking, no permanent silence from a stale banner.
-- **Throttle**: identical notifications coalesce within 3 s; throttled/deduped sends do not consume the throttle window.
-- **Zero manual install, works out of the box**: the plugin ships the macOS notification binary itself (arm64 for Apple Silicon; Intel Macs fall back to the x86_64 binary bundled with the npm dependency `node-notifier`; the `tool` config can still override with a system-installed version).
-- **Host-side event driven**: listens to host `session/event` and `subagent/end` (not the browser page), so banners appear even when the tab is backgrounded.
+安装后，打开 DSH 设置弹窗（左下角 ⚙️），左侧边会出现 **「通知管理」** 设置页：
 
-## Install
+- **是否启用**：总开关，关闭后所有组静默。
+- **通知行为**：重复通知开关（存在未点击通知时是否继续弹）、点击横幅后打开的应用（自动扫描 DeepSeek Harness 桌面应用与浏览器）。
+- **通知分组**：三大组各一个开关 + 提示音 + 标题/消息模板编辑（含模板变量提示）。
+- 右上角 **保存**（配置即时生效，持久化到 `~/.dsh/dsh-niao-message.config.json`）与 **测试通知**（立即弹一条测试横幅）。
+
+## 安装
+
+在 DSH profile（如 `web`）中安装本包并加入 bundle：
 
 ```sh
-# Option 1: install the local folder (symlink; edits take effect on restart)
 cd ~/.dsh/profiles/web
-npm install /Users/majun/code/0item-dsh-plugins/dsh-niao-message
-
-# Option 2: pack and install the tarball
-cd /Users/majun/code/0item-dsh-plugins/dsh-niao-message && npm pack
-cd ~/.dsh/profiles/web
-npm install ../0item-dsh-plugins/dsh-niao-message/dsh-niao-message-0.2.0.tgz
+pnpm add dsh-niao-message   # 或 npm install dsh-niao-message
 ```
 
-Add the package to the profile's `dependencies` and `dsh.profile.bundles`, then restart `dsh web`.
+然后把包加入 profile 的 `dsh.profile.bundles`，重启 `dsh web`：
 
-> **Migrating from the old `dsh-notify`**: comment out or remove the `dsh-notify` row in `~/.dsh/profiles/web/cordis.patch.yml`, otherwise both plugins fire duplicate banners.
+```json
+{
+  "dependencies": { "dsh-niao-message": "^0.1.0" },
+  "dsh": { "profile": { "bundles": [ "...", "dsh-niao-message" ] } }
+}
+```
 
-## Configuration priority
+## 配置优先级
 
-`DEFAULTS` (in-plugin) < profile patch `cordis.patch.yml` `config` < settings-panel file `~/.dsh/dsh-niao-message.config.json` (highest).
+`DEFAULTS`（插件内置） < profile 补丁层 `cordis.patch.yml` 的 `config` < 设置面板保存的 `~/.dsh/dsh-niao-message.config.json`（最高）。
 
-Patch-layer overrides (config hot-reloads):
+补丁层覆盖示例（config 改动热加载生效）：
 
 ```yaml
 - insert:
@@ -70,56 +79,54 @@ Patch-layer overrides (config hot-reloads):
       config:
         click:
           open: DeepSeek Harness
-        enabled: true
-        scenarios:
-          'tool-error':
+        groups:
+          abnormal:
             enabled: true
             sound: Basso
             title: 'DSH · 工具出错'
             message: '{name} ({code})'
 ```
 
-| Key | Meaning | Default |
+| 配置项 | 含义 | 默认 |
 |---|---|---|
-| `enabled` | master switch | `true` |
-| `tool` | terminal-notifier binary path (auto: plugin-bundled → node-notifier bundled → system paths) | auto |
-| `click.open` | app name for `open -a` on click | `DeepSeek Harness` |
-| `click.activate` | bundle id to activate on click | — |
-| `click` (string) | custom click shell command | — |
-| `throttleMs` | same-kind coalescing window (ms) | `3000` |
-| `approvalGraceMs` | grace window before an unresolved approval notifies | `1000` |
-| `pendingFile` | dedupe marker file | `~/.dsh/dsh-niao-message-pending.json` |
-| `configFile` | settings-panel persistence file | `~/.dsh/dsh-niao-message.config.json` |
-| `pendingMaxAgeMs` | marker expiry (ms) | `300000` |
-| `scenarios.<key>.enabled / sound / title / message` | per-scenario config | see table above |
+| `enabled` | 总开关 | `true` |
+| `tool` | terminal-notifier 可执行文件路径（留空自动探测：插件自带 → node-notifier 自带 → 系统路径） | 自动探测 |
+| `click.open` | 点击横幅时用 `open -a` 打开的应用名 | 空（仅消失） |
+| `click.activate` | 备选：按 bundle id 激活应用 | — |
+| `click`（字符串） | 备选：自定义点击 shell 命令 | — |
+| `allowRepeat` | 存在未点击通知时仍继续弹新通知 | `false` |
+| `throttleMs` | 同类通知节流窗口 | `3000` |
+| `approvalGraceMs` | 批准宽限期（期内自动放行则静默） | `1000` |
+| `pendingFile` | 去重标记文件路径 | `~/.dsh/dsh-niao-message-pending.json` |
+| `configFile` | 设置面板持久化配置文件 | `~/.dsh/dsh-niao-message.config.json` |
+| `pendingMaxAgeMs` | 标记过期时间 | `300000` |
+| `groups.<key>.enabled / sound / title / message` | 三大组独立配置（key ∈ abnormal / waiting / success） | 见上表 |
 
-Legacy toggles (`onQuestion` / `onApproval` / `onToolError` / `onTurnError` / `onComplete`) are still recognized and map to the matching scenario's `enabled`.
+## 验证
 
-## Verification
+- 设置面板：打开设置弹窗 → 左侧「通知管理」→ 点「测试通知」→ 通知中心出现测试横幅。
+- 功能是否生效：发起一次任务 → 完成后出现「DSH · 任务完成」；Agent 提问时出现「DSH · 需要你操作」。
+- 点击行为：点击横幅 → 配置的应用被激活 + 标记文件被删除。
+- 去重行为：不点第一条通知，再触发一次完成 → 新通知被跳过（插件日志出现 `skipped (un-clicked notification pending)`）。
 
-- Settings panel: open Settings → 「通知管理」 → **测试通知** → a test banner appears.
-- End-to-end: run a task → 「DSH · 任务完成」 appears; when the agent asks → 「需要你回答」.
-- Click: clicking the banner activates DeepSeek Harness and deletes the marker file.
-- Dedupe: leave the first banner un-clicked, trigger another completion → new banner skipped (`skipped (un-clicked notification pending)` in logs).
-
-## Development
+## 开发
 
 ```sh
-npm install          # install deps (node-notifier + esbuild)
-npm run build        # build browser bundle (src/client.js → lib/client.js)
-npm run check        # syntax-check host / client source / build script / smoke
-npm run smoke        # smoke test (fake ctx + fake webServer + capture script, 30 checks, no real banners)
+npm install          # 安装依赖（node-notifier + esbuild）
+npm run build        # 构建浏览器端 bundle（src/client.js → lib/client.js）
+npm run check        # 语法检查宿主端 / 客户端 / 构建脚本 / smoke
+npm run smoke        # 冒烟测试（fake ctx + 假 webServer + 录制脚本，不弹真实通知，33 项）
 ```
 
-## Dependencies
+## 依赖
 
-**Zero manual install.** Everything is shipped with the plugin:
+**零手动安装**。插件自带了全部所需组件：
 
-- **macOS notification binary**: `lib/vendor/terminal-notifier.app` (arm64, bundled — Apple Silicon works out of the box).
-- **npm dependency `node-notifier`** (installed automatically): bundles an x86_64 terminal-notifier for Intel Macs.
-- **macOS built-in `open` command**: click-to-open.
-- To use a system-installed terminal-notifier (e.g. Homebrew), set `tool` in the config.
+- **macOS 通知二进制**：`lib/vendor/terminal-notifier.app`（arm64，随插件分发，Apple Silicon 开箱即用）。
+- **npm 依赖 `node-notifier`**（安装插件时自动安装）：自带 x86_64 版 terminal-notifier，覆盖 Intel Mac。
+- **macOS 系统自带的 `open` 命令**：点击横幅打开软件。
+- 如需使用系统自装的 terminal-notifier（如 Homebrew 版本），在配置里设 `tool` 即可覆盖。
 
-## License
+## 许可证
 
-MIT (bundled component licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md))
+MIT（附带组件许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）
