@@ -1,0 +1,63 @@
+{
+  "name": "dsh-niao-message",
+  "version": "0.2.0",
+  "description": "macOS system notifications for DeepSeek Harness — question / pending approval / tool error / turn complete / turn error / aborted / max-tokens / blocked / interrupted / subagent end — via terminal-notifier; clicking a banner opens a configured app (default: DeepSeek Harness). Ships a built-in notification binary (zero manual install) and a settings panel under Settings → 通知管理. · DSH macOS 系统通知：等待确认/待批准/工具失败/完成/出错/中止/超限/阻塞/中断/子代理结束等场景弹通知中心横幅，点击打开指定软件；自带二进制零安装，设置弹窗「通知管理」面板可配置。",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "notification",
+    "terminal-notifier",
+    "macos",
+    "notify",
+    "banner",
+    "settings"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "dependencies": {
+    "node-notifier": "^10.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "prepack": "npm run build",
+    "check": "node --check lib/index.js && node --check scripts/smoke.mjs && node --check scripts/build-client.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  }
+}

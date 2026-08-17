@@ -1,0 +1,24 @@
+# dsh-niao-message bundle patch: mounts the plugin into a profile layer stack.
+# Runtime defaults live at the plugin's config boundary (DEFAULTS in
+# lib/index.js). Users override them in their profile patch row with the same
+# id, or interactively in Settings → 通知管理 (persisted to
+# ~/.dsh/dsh-niao-message.config.json, highest priority).
+#
+#   - insert:
+#       - id: dsh-niao-message
+#         name: 'dsh-niao-message'
+#         config:
+#           click:
+#             open: 'DeepSeek Harness'
+#           pendingFile: ~/.dsh/dsh-niao-message-pending.json
+#           configFile: ~/.dsh/dsh-niao-message.config.json
+#           enabled: true
+#           scenarios:
+#             'tool-error':
+#               enabled: true
+#               sound: Basso
+#               title: 'DSH · 工具出错'
+#               message: '{name} ({code})'
+- insert:
+    - id: dsh-niao-message
+      name: 'dsh-niao-message'
