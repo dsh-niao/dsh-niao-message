@@ -14,7 +14,7 @@
  * 注意：异步子进程在本环境启动较慢（数百毫秒），所有断言都通过
  * waitFor 轮询等待，而不是固定 sleep。
  *
- * 运行：npm run smoke（共 33 项断言）
+ * 运行：npm run smoke（共 38 项断言）
  */
 
 import { execFileSync } from 'node:child_process'

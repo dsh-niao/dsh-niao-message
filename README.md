@@ -10,6 +10,7 @@ DeepSeek Harness 的 **macOS 系统通知** 插件，自带 **设置面板**（�
 
 - **三大通知组**：把全部可通知情况归为「异常终止 / 需要你操作 / 正常完成」三组，每组一个开关 + 提示音 + 标题/消息模板，简单直观。
 - **点击打开指定软件**：点击横幅执行 `open -a '<应用名>'`（或按 bundle id 激活 / 自定义 shell 命令），同时清除「未点击去重」标记。
+- **回到页面即自动清空**：所有通知统一挂 `-group dsh-niao`；当你切回 DSH 页面（浏览器页签或独立窗口 PWA，监听 `visibilitychange` + `focus`，纯事件驱动零轮询）时，本插件弹出的全部系统通知自动消失——通知只在「你不在 DSH 页面时」提醒。
 - **未点击去重**：通知中心还挂着未点击的 DSH 通知时，新通知自动跳过（标记文件 + 过期时间，防止刷屏与永久静默）。
 - **节流**：同类通知 3 秒内合并为一条；被节流/去重拦下的通知不消耗节流配额。
 - **零手动安装**：插件自带 macOS 通知二进制（arm64，Apple Silicon 开箱即用）；Intel Mac 自动回退到 npm 依赖 `node-notifier` 自带的 x86_64 二进制，无需用户安装任何系统工具。
@@ -108,6 +109,7 @@ pnpm add dsh-niao-message   # 或 npm install dsh-niao-message
 - 设置面板：打开设置弹窗 → 左侧「通知管理」→ 点「测试通知」→ 通知中心出现测试横幅。
 - 功能是否生效：发起一次任务 → 完成后出现「DSH · 任务完成」；Agent 提问时出现「DSH · 需要你操作」。
 - 点击行为：点击横幅 → 配置的应用被激活 + 标记文件被删除。
+- 自动清空：发一条通知后切到其它应用/页签，再切回 DSH 页面 → 本插件弹出的通知自动消失（浏览器页签与独立窗口 PWA 均支持）。
 - 去重行为：不点第一条通知，再触发一次完成 → 新通知被跳过（插件日志出现 `skipped (un-clicked notification pending)`）。
 
 ## 开发
@@ -116,7 +118,7 @@ pnpm add dsh-niao-message   # 或 npm install dsh-niao-message
 npm install          # 安装依赖（node-notifier + esbuild）
 npm run build        # 构建浏览器端 bundle（src/client.js → lib/client.js）
 npm run check        # 语法检查宿主端 / 客户端 / 构建脚本 / smoke
-npm run smoke        # 冒烟测试（fake ctx + 假 webServer + 录制脚本，不弹真实通知，33 项）
+npm run smoke        # 冒烟测试（fake ctx + 假 webServer + 录制脚本，不弹真实通知，38 项）
 ```
 
 ## 依赖

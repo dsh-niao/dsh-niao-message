@@ -10,6 +10,7 @@ Uses **terminal-notifier** to post Notification Center banners at the moments th
 
 - **Three notification groups**: every notifiable situation is grouped into "Abnormal termination / Action needed / Completed", each group having one toggle, one sound and its own title/message templates — simple and intuitive.
 - **Click to open an app**: clicking a banner runs `open -a '<AppName>'` (or activates a bundle id / a custom shell command) and clears the un-clicked dedupe marker.
+- **Auto-dismiss on return**: every notification is posted under the `-group dsh-niao` id; when you switch back to the DSH page (browser tab or standalone PWA window — driven by `visibilitychange` + `focus`, pure event-driven, zero polling), all notifications from this plugin are removed automatically — banners only remind you while you are away.
 - **Un-clicked dedupe**: while an un-clicked DSH notification is pending (marker file with expiry), new notifications are skipped — no banner stacking, no permanent silence from a stale banner.
 - **Throttle**: identical notifications coalesce within 3 s; throttled/deduped sends do not consume the throttle window.
 - **Zero manual install**: the plugin ships the macOS notification binary itself (arm64, works out of the box on Apple Silicon); Intel Macs automatically fall back to the x86_64 binary bundled with the npm dependency `node-notifier` — no system tool to install.
@@ -108,6 +109,7 @@ Patch-layer override example (config hot-reloads):
 - Settings panel: open Settings → 「通知管理」 → **测试通知** → a test banner appears.
 - End-to-end: run a task → 「DSH · 任务完成」 appears; when the agent asks → 「DSH · 需要你操作」.
 - Click: clicking the banner activates the configured app and deletes the marker file.
+- Auto-dismiss: post a notification, switch to another app/tab, then switch back to the DSH page → the plugin's notifications are removed automatically (works in browser tabs and standalone PWA windows).
 - Dedupe: leave the first banner un-clicked, trigger another completion → new banner skipped (`skipped (un-clicked notification pending)` in logs).
 
 ## Development
@@ -116,7 +118,7 @@ Patch-layer override example (config hot-reloads):
 npm install          # install deps (node-notifier + esbuild)
 npm run build        # build browser bundle (src/client.js → lib/client.js)
 npm run check        # syntax-check host / client / build script / smoke
-npm run smoke        # smoke test (fake ctx + fake webServer + capture script, 33 checks, no real banners)
+npm run smoke        # smoke test (fake ctx + fake webServer + capture script, 38 checks, no real banners)
 ```
 
 ## Dependencies
