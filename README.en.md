@@ -55,11 +55,15 @@ After install, open the DSH settings dialog (⚙️ at the sidebar foot); the le
 Install the package in a DSH profile (e.g. `web`) and add it to the bundle:
 
 ```sh
+# Option 1 (official CLI — maintains the bundles list automatically)
+dsh plugin --profile web add dsh-niao-message
+
+# Option 2 (manual pnpm)
 cd ~/.dsh/profiles/web
-pnpm add dsh-niao-message   # or npm install dsh-niao-message
+pnpm add dsh-niao-message
 ```
 
-Then add the package to the profile's `dsh.profile.bundles` and restart `dsh web`:
+For the manual way, add the package to the profile's `dsh.profile.bundles` and restart `dsh web`:
 
 ```json
 {
@@ -68,9 +72,11 @@ Then add the package to the profile's `dsh.profile.bundles` and restart `dsh web
 }
 ```
 
+> The package declares `dsh.bundle` (a bundle package), so `dsh plugin add` appends the bundles entry automatically; dependencies (`@deepseek-ai/schemastery`, `node-notifier`) are resolved at install time.
+
 ## Configuration priority
 
-`DEFAULTS` (in-plugin) < profile patch `cordis.patch.yml` `config` < settings-panel file `~/.dsh/dsh-niao-message.config.json` (highest).
+`Config` schema defaults (validated by Cordis) < profile patch `cordis.patch.yml` `config` < settings-panel file `~/.dsh/dsh-niao-message.config.json` (highest).
 
 Patch-layer override example (config hot-reloads):
 

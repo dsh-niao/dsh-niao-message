@@ -55,11 +55,15 @@ DeepSeek Harness 的 **macOS 系统通知** 插件，自带 **设置面板**（�
 在 DSH profile（如 `web`）中安装本包并加入 bundle：
 
 ```sh
+# 方式一（官方 CLI，自动维护 bundles 列表）
+dsh plugin --profile web add dsh-niao-message
+
+# 方式二（pnpm 手动）
 cd ~/.dsh/profiles/web
-pnpm add dsh-niao-message   # 或 npm install dsh-niao-message
+pnpm add dsh-niao-message
 ```
 
-然后把包加入 profile 的 `dsh.profile.bundles`，重启 `dsh web`：
+手动方式需要把包加入 profile 的 `dsh.profile.bundles`，然后重启 `dsh web`：
 
 ```json
 {
@@ -68,9 +72,11 @@ pnpm add dsh-niao-message   # 或 npm install dsh-niao-message
 }
 ```
 
+> 包声明了 `dsh.bundle`（组合包），`dsh plugin add` 会自动追加 bundles 项；依赖（`@deepseek-ai/schemastery`、`node-notifier`）随安装自动解析。
+
 ## 配置优先级
 
-`DEFAULTS`（插件内置） < profile 补丁层 `cordis.patch.yml` 的 `config` < 设置面板保存的 `~/.dsh/dsh-niao-message.config.json`（最高）。
+`Config` schema 默认值（插件内置，Cordis 校验并填充） < profile 补丁层 `cordis.patch.yml` 的 `config` < 设置面板保存的 `~/.dsh/dsh-niao-message.config.json`（最高）。
 
 补丁层覆盖示例（config 改动热加载生效）：
 
