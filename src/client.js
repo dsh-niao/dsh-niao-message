@@ -394,6 +394,17 @@ export function apply(ctx) {
     return () => observer.disconnect()
   }, 'dsh-niao-message: nav icon')
 
+  // 页面切回前台（用户回到 DSH 页面）时，请求宿主端清空本插件弹出的
+  // 全部系统通知——通知只在「不在页面时」提醒，回到页面即自动消失。
+  // 浏览器原生 visibilitychange 事件驱动，无任何轮询开销。
+  ctx.effect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') rpc('dismiss-all')
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, 'dsh-niao-message: dismiss on visible')
+
   const slots = ctx.get('slots')
   if (!slots) return
 

@@ -8,6 +8,7 @@
  *   - 总开关 enabled
  *   - 节流、未点击去重、点击参数（open -a + 删标记）、批准宽限期
  *   - 设置面板路由：get-config / set-config（持久化到临时文件）/ test
+ *   - 切回页面清空通知：统一分组（-group dsh-niao）、dismiss-all 按组移除
  *   - vendored 二进制存在且可执行
  *
  * 注意：异步子进程在本环境启动较慢（数百毫秒），所有断言都通过
@@ -158,6 +159,9 @@ await waitFor(() => log().length === 1)
 check('询问：ask_user_question 触发通知', log().length === 1 && log()[0].includes('需要你操作'))
 check('节流：窗口内同类通知被合并', log().length === 1)
 
+/* 2b. 统一分组：发送参数含 -group dsh-niao（供切回页面时按组清空） */
+check('分组：发送参数含 -group dsh-niao', log()[0].includes('-group') && log()[0].includes('dsh-niao'))
+
 /* 3. 去重：标记存在时其他组也被跳过 */
 emit('turn/end', { reason: { kind: 'completed' } })
 await sleep(800)
@@ -257,6 +261,18 @@ check('test：实际发送通知', log().length === 1 && log()[0].includes('通�
 const crossRes = makeRes()
 await routeHandler(makeReq('POST', { action: 'get-config' }, 'https://evil.example'), crossRes)
 check('跨站 POST 被拒绝', crossRes.out.status === 403)
+
+/* 16. 切回页面清空通知：dismiss-all → 按组移除本插件通知 + 清除未点击标记 */
+clearAll()
+await sleep(200) // 等 success 组节流窗口（throttleMs=100）过去
+emit('turn/end', { reason: { kind: 'completed' } })
+await waitFor(() => log().length === 1 && log()[0].includes('任务完成'))
+check('准备：先弹出一条通知并写入标记', existsSync(MARKER))
+const dis1 = await http('dismiss-all')
+await sleep(300)
+check('dismiss-all：返回 dismissed', dis1.status === 200 && dis1.data.value.result === 'dismissed')
+check('dismiss-all：执行 -remove dsh-niao（按组清空）', log().some((l) => l.includes('-remove') && l.includes('dsh-niao')))
+check('dismiss-all：未点击标记被清除', !existsSync(MARKER))
 
 /* 清理：插件 effect 返回的 disposer 应能停止所有定时器 */
 for (const dispose of effects) dispose()
