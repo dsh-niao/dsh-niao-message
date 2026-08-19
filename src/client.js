@@ -394,15 +394,33 @@ export function apply(ctx) {
     return () => observer.disconnect()
   }, 'dsh-niao-message: nav icon')
 
-  // 页面切回前台（用户回到 DSH 页面）时，请求宿主端清空本插件弹出的
+  // 页面回到前台（用户回到 DSH 页面）时，请求宿主端清空本插件弹出的
   // 全部系统通知——通知只在「不在页面时」提醒，回到页面即自动消失。
-  // 浏览器原生 visibilitychange 事件驱动，无任何轮询开销。
+  //
+  // 两种宿主形态都要覆盖：
+  //   1) 浏览器页签：visibilitychange（切回页签 → visible）触发；
+  //   2) 独立窗口 PWA（把页面安装成本地应用）：窗口失焦时 visibilityState
+  //      可能保持不变（不产生 visible 事件），需监听 window focus 事件，
+  //      窗口重新激活时触发。
+  // 事件驱动、无轮询开销；1s 内去重避免双事件同时触发重复请求。
   ctx.effect(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') rpc('dismiss-all')
+    let lastDismiss = 0
+    const dismiss = () => {
+      const now = Date.now()
+      if (now - lastDismiss < 1000) return
+      lastDismiss = now
+      rpc('dismiss-all')
     }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') dismiss()
+    }
+    const onFocus = () => dismiss()
     document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('focus', onFocus)
+    }
   }, 'dsh-niao-message: dismiss on visible')
 
   const slots = ctx.get('slots')
